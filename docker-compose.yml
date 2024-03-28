@@ -1,0 +1,35 @@
+version: '3.8'
+
+networks:
+  payments_platform:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret123
+      POSTGRES_DB: payments
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - payments_platform
+
+  golang-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: golang-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - payments_platform
+
+volumes:
+  postgres_data:
