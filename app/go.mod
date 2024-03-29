@@ -3,6 +3,7 @@ module github.com/alvarezcarlos/payment/app
 go 1.22.1
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/labstack/echo/v4 v4.11.4
 	gorm.io/driver/postgres v1.5.7

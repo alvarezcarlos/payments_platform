@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/alvarezcarlos/payment/app/application"
 	"github.com/alvarezcarlos/payment/app/config"
+	"github.com/alvarezcarlos/payment/app/domain/entity"
+	"github.com/alvarezcarlos/payment/app/domain/repository"
 	"github.com/alvarezcarlos/payment/app/infrastructure/postgres/connection"
+	"github.com/alvarezcarlos/payment/app/interface/rest"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 	"io"
@@ -20,11 +24,23 @@ func main() {
 	file := setLogger()
 	defer file.Close()
 
-	//Repositories
+	//DBConnection
 	db := connection.NewPostgresConnection(&gorm.Config{}, slog.Default())
-	db.GetConnection()
-
+	conn := db.GetConnection()
+	migrator := connection.NewMigrate(conn, slog.Default())
+	initDBMigrations(migrator)
+	//Repositories
+	merchantRepo := repository.NewMerchantRepository(conn)
+	paymentRepo := repository.NewPaymentRepository(conn)
+	//UseCases
+	merchantUseCase := application.NewMerchantUseCase(merchantRepo, slog.Default())
+	paymentUseCase := application.NewPaymentUseCase(paymentRepo, slog.Default())
 	e := echo.New()
+
+	//Controllers
+	rest.NewMerchantController(e, merchantUseCase)
+	rest.NewPaymentController(e, paymentUseCase)
+
 	go startServer(e)
 	gracefulShutdown(e)
 }
@@ -84,4 +100,15 @@ func gracefulShutdown(e *echo.Echo) {
 	if err := e.Shutdown(ctx); err != nil {
 		e.Logger.Fatal(err)
 	}
+}
+
+func initDBMigrations(migrator connection.MigrateInterface) {
+	tables := []interface{}{
+		&entity.Customer{},
+		&entity.Merchant{},
+		&entity.Payment{},
+		&entity.Card{},
+		//&entity.PaymentState{},
+	}
+	migrator.AutoMigrateAll(tables...)
 }

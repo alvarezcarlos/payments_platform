@@ -6,6 +6,11 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log/slog"
+	"time"
+)
+
+const (
+	maxRetries = 5
 )
 
 type PostgresRepository interface {
@@ -30,10 +35,18 @@ func NewPostgresConnection(conf *gorm.Config, logger *slog.Logger) *PostgresConn
 	}
 }
 func (pg *PostgresConnection) GetConnection() *gorm.DB {
-	db, err := gorm.Open(postgres.Open(pg.url), pg.config)
-	if err != nil {
-		panic("failed to connect database")
+	var db *gorm.DB
+	var err error
+
+	for i := 1; i <= maxRetries; i++ {
+		db, err = gorm.Open(postgres.Open(pg.url), pg.config)
+		if err != nil {
+			pg.logger.Error(fmt.Errorf("%w, attempt %d of %d", err, i, maxRetries).Error())
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		pg.logger.Debug(" =======> db connected")
+		return db
 	}
-	pg.logger.Debug(" =======> db connected")
-	return db
+	panic(err)
 }
