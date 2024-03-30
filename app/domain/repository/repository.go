@@ -9,12 +9,9 @@ type MerchantRepository interface {
 	Create(merchant *entity.Merchant) error
 }
 
-type CustomerRepository interface {
-	Create(customer *entity.Customer) error
-}
-
 type PaymentRepository interface {
 	Create(payment *entity.Payment) error
-	Update(payment *entity.Payment) (entity.Payment, error)
-	GetByID(id uuid.UUID) (entity.Payment, error)
+	Update(payment *entity.Payment) (*entity.Payment, error)
+	GetByID(id uuid.UUID) (*entity.Payment, error)
+	CreateCard(card *entity.Card) error
 }

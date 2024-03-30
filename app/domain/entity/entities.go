@@ -5,19 +5,12 @@ import (
 	"time"
 )
 
-type Customer struct {
-	ID        uint `gorm:"primaryKey;autoIncrement"`
-	Name      string
-	Card      Card
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
 type Card struct {
-	ID         uint `gorm:"primaryKey;autoIncrement"`
-	CustomerID uint
-	Number     string
-	Code       int
+	ID         uint `gorm:"primaryKey;autoIncremental"`
+	HolderID   uint
+	HolderName string
+	Number     string `gorm:"unique"`
+	Code       string
 	Month      int
 	Year       int
 }
@@ -34,7 +27,7 @@ type Merchant struct {
 type Payment struct {
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey"`
 	Amount     float64
-	CustomerID uint    `gorm:"index"`
+	CardNumber string
 	MerchantID uint    `gorm:"index"`
 	States     []State `gorm:"many2many:payment_states;"`
 	CreatedAt  time.Time
@@ -44,7 +37,6 @@ type Payment struct {
 type State struct {
 	ID   uint   `gorm:"primaryKey"`
 	Name string `gorm:"uniqueIndex"`
-	//PaymentStates []PaymentState `gorm:"foreignKey:StateID"`
 }
 
 func SetState(name StateEnum) State {
@@ -62,13 +54,6 @@ func SetState(name StateEnum) State {
 	return s
 }
 
-//type PaymentState struct {
-//	ID        uint `gorm:"primaryKey"`
-//	PaymentID uint `gorm:"index"`
-//	StateID   uint `gorm:"index"`
-//	SetAt     time.Time
-//}
-
 type StateEnum string
 
 const (
@@ -78,10 +63,6 @@ const (
 	Refunded  StateEnum = "Refunded"
 )
 
-func (Customer) TableName() string {
-	return "customers"
-}
-
 func (Merchant) TableName() string {
 	return "merchants"
 }
@@ -89,7 +70,3 @@ func (Merchant) TableName() string {
 func (Payment) TableName() string {
 	return "payments"
 }
-
-//func (PaymentState) TableName() string {
-//	return "payment_states"
-//}

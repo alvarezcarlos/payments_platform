@@ -9,14 +9,20 @@ import (
 	"github.com/alvarezcarlos/payment/app/domain/repository"
 	"github.com/alvarezcarlos/payment/app/infrastructure/postgres/connection"
 	"github.com/alvarezcarlos/payment/app/interface/rest"
+	"github.com/alvarezcarlos/payment/app/interface/rest/validation"
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"io"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"time"
 )
+
+var validate *validator.Validate
 
 func main() {
 	config.Environment()
@@ -25,7 +31,7 @@ func main() {
 	defer file.Close()
 
 	//DBConnection
-	db := connection.NewPostgresConnection(&gorm.Config{}, slog.Default())
+	db := connection.NewPostgresConnection(&gorm.Config{Logger: dbLogger()}, slog.Default())
 	conn := db.GetConnection()
 	migrator := connection.NewMigrate(conn, slog.Default())
 	initDBMigrations(migrator)
@@ -38,11 +44,24 @@ func main() {
 	e := echo.New()
 
 	//Controllers
-	rest.NewMerchantController(e, merchantUseCase)
-	rest.NewPaymentController(e, paymentUseCase)
+	customValidator := validation.NewCustomValidator(validate)
+	rest.NewMerchantController(e, merchantUseCase, customValidator)
+	rest.NewPaymentController(e, paymentUseCase, customValidator)
 
 	go startServer(e)
 	gracefulShutdown(e)
+}
+
+func dbLogger() logger.Interface {
+	return logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             100,
+			LogLevel:                  logger.Info,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
 }
 
 func setLogger() *os.File {
@@ -104,11 +123,9 @@ func gracefulShutdown(e *echo.Echo) {
 
 func initDBMigrations(migrator connection.MigrateInterface) {
 	tables := []interface{}{
-		&entity.Customer{},
 		&entity.Merchant{},
 		&entity.Payment{},
 		&entity.Card{},
-		//&entity.PaymentState{},
 	}
 	migrator.AutoMigrateAll(tables...)
 }
