@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/alvarezcarlos/payment/app/interface/rest/middelware"
-	"github.com/labstack/echo/v4/middleware"
 	"io"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/alvarezcarlos/payment/app/interface/rest/middelware"
+	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/alvarezcarlos/payment/app/application"
 	"github.com/alvarezcarlos/payment/app/config"

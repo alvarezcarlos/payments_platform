@@ -1,8 +1,9 @@
 package rest
 
 import (
-	"github.com/alvarezcarlos/payment/app/interface/rest/middelware"
 	"net/http"
+
+	"github.com/alvarezcarlos/payment/app/interface/rest/middelware"
 
 	"github.com/alvarezcarlos/payment/app/application"
 	"github.com/alvarezcarlos/payment/app/domain/entity"

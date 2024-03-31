@@ -1,11 +1,12 @@
 package rest
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/alvarezcarlos/payment/app/config"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
-	"net/http"
-	"time"
 
 	"github.com/alvarezcarlos/payment/app/application"
 	"github.com/alvarezcarlos/payment/app/domain/entity"
