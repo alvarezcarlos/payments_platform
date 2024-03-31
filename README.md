@@ -28,18 +28,12 @@ Before running the Payment Platform Service, ensure you have the following prere
     ```
     cd paymens_platform
     ```
-
-3. **Build the Docker image** for the Payment Platform Service:
+3. **Start the microservice**:
     ```
-    docker-compose build
-    ```
-
-4. **Start the microservice**:
-    ```
-    docker-compose up
+    docker-compose up -d
     ```
 
-5. **Access the Payment Platform Service** through the exposed endpoint.
+4**Access the Payment Platform Service** through the exposed endpoint.
 
 ## Usage
 Once the Payment Platform Service is running, you can interact with it through its endpoint. Here is the endpoint for the service:
