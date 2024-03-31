@@ -2,6 +2,7 @@ package rest
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/alvarezcarlos/payment/app/interface/rest/middelware"
 
@@ -36,6 +37,15 @@ func (p *PaymentController) Create(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
 	}
 
+	merchId, err := getMerchantAttrFromToken(c.Request().Header.Get("Authorization"), merchantIdAttr)
+	if err != nil {
+		return err
+	}
+
+	if strconv.Itoa(int(pay.MerchantID)) != merchId {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "invalid merchant"})
+	}
+
 	if err := p.customValidator.ValidateStruct(pay); err != nil {
 		c.Logger().Error(err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
@@ -46,7 +56,7 @@ func (p *PaymentController) Create(c echo.Context) error {
 		Amount:     pay.Amount,
 	}
 
-	payment, err := p.useCase.Create(payment)
+	payment, err = p.useCase.Create(payment)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 	}
@@ -96,7 +106,7 @@ func (p *PaymentController) Process(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 	}
-	return c.JSON(http.StatusOK, map[string]interface{}{"id": payment.ID, "state": payment.States[len(payment.States)-1]})
+	return c.JSON(http.StatusOK, map[string]interface{}{"id": payment.ID})
 }
 
 func (p *PaymentController) Refund(c echo.Context) error {
@@ -112,7 +122,12 @@ func (p *PaymentController) Refund(c echo.Context) error {
 
 	uid, _ := uuid.Parse(refundReq.PaymentID)
 
-	err := p.useCase.ProcessRefund(uid)
+	merchId, err := getMerchantAttrFromToken(c.Request().Header.Get("Authorization"), merchantIdAttr)
+	if err != nil {
+		return err
+	}
+
+	err = p.useCase.ProcessRefund(uid, merchId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 	}

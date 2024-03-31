@@ -3,7 +3,9 @@ package application
 import (
 	"errors"
 	"fmt"
+	"github.com/labstack/gommon/log"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/alvarezcarlos/payment/app/domain/entity"
@@ -13,10 +15,11 @@ import (
 )
 
 const (
-	paymentConst      = "payment"
-	refundConst       = "refund"
-	errorProcessing   = "error processing %s, please try again later"
-	errorInvalidState = "error invalid payment state for processing"
+	paymentConst         = "payment"
+	refundConst          = "refund"
+	errorProcessing      = "error processing %s, please try again later"
+	errorInvalidState    = "error invalid payment state for processing"
+	errorCreatingPayment = "error creating payment"
 )
 
 type paymentUseCase struct {
@@ -28,17 +31,21 @@ func NewPaymentUseCase(paymentRepository repository.PaymentRepository, logger *s
 	return &paymentUseCase{repository: paymentRepository, logger: logger}
 }
 
+// Create payment can only be accessed by a Merchant, that will partially populate it with fields like
+// Amount and other merchant information and the Customer should be redirected with the payment_id for processing.
 func (p *paymentUseCase) Create(payment *entity.Payment) (*entity.Payment, error) {
 	payment.ID = uuid.New()
 	payment.States = append(payment.States, entity.SetState(entity.Pending))
 	payment.CreatedAt, payment.UpdatedAt = time.Now(), time.Now()
 	if err := p.repository.Create(payment); err != nil {
 		p.logger.Error(err.Error())
-		return nil, errors.New("error creating payment")
+		return nil, errors.New(errorCreatingPayment)
 	}
+	p.logger.Info("payment created ", payment)
 	return payment, nil
 }
 
+// GetByID retrieve a payment details by Id
 func (p *paymentUseCase) GetByID(uuid uuid.UUID) (*entity.Payment, error) {
 	payment, err := p.repository.GetByID(uuid)
 	if err != nil {
@@ -48,6 +55,8 @@ func (p *paymentUseCase) GetByID(uuid uuid.UUID) (*entity.Payment, error) {
 	return payment, nil
 }
 
+// ProcessPayment the business core functionality, it allows the customer to complete the payment,
+// also stores the information of the card assigning random founds to it and perform the transaction with the bank
 func (p *paymentUseCase) ProcessPayment(
 	payment *entity.Payment,
 	card *entity.Card) (*entity.Payment, error) {
@@ -66,13 +75,13 @@ func (p *paymentUseCase) ProcessPayment(
 
 	pay.CardNumber = card.Number
 
-	for _, state := range pay.States {
-		if state == entity.SetState(entity.Succeeded) ||
-			state == entity.SetState(entity.Refunded) {
-			return nil, errors.New(fmt.Sprintf("%s (%s)", errorInvalidState, pay.States[len(pay.States)-1].Name))
-		}
+	//only pay pending or rejected operations
+	statesMap := statesToMap(pay.States)
+	if _, isSucceeded := statesMap[string(entity.Succeeded)]; isSucceeded {
+		return nil, fmt.Errorf(errorInvalidState)
 	}
 
+	p.logger.Info("initializing payment process with mock Bank")
 	err = p.BankSimulator(pay, paymentConst)
 	if err != nil {
 		return nil, errors.New("from bank" + err.Error())
@@ -82,19 +91,32 @@ func (p *paymentUseCase) ProcessPayment(
 	if err != nil {
 		return nil, fmt.Errorf(errorProcessing, paymentConst)
 	}
-
+	p.logger.Info("payment processed successfully")
 	return updatedPayment, nil
 }
 
-func (p *paymentUseCase) ProcessRefund(uuid uuid.UUID) error {
+// ProcessRefund payment can only be accessed by a Merchant, to execute the devolution for client money
+func (p *paymentUseCase) ProcessRefund(uuid uuid.UUID, merchantId string) error {
 	pay, err := p.repository.GetByID(uuid)
 	if err != nil {
 		p.logger.Error(err.Error())
 		return fmt.Errorf(errorProcessing, refundConst)
 	}
 
-	if pay.States[len(pay.States)-1] != entity.SetState(entity.Succeeded) {
-		return errors.New(fmt.Sprintf("%s (%s)", errorInvalidState, pay.States[len(pay.States)-1].Name))
+	if strconv.Itoa(int(pay.MerchantID)) != merchantId {
+		log.Error("merchants don't match")
+		return fmt.Errorf(errorProcessing, refundConst)
+	}
+
+	p.logger.Info("payment to be refunded", pay)
+
+	//only refund a successful operation
+	statesMap := statesToMap(pay.States)
+	_, isRefunded := statesMap[string(entity.Refunded)]
+	_, isSucceeded := statesMap[string(entity.Succeeded)]
+
+	if isRefunded || !isSucceeded {
+		return errors.New(fmt.Sprintf("%s ", errorInvalidState))
 	}
 
 	err = p.BankSimulator(pay, refundConst)
@@ -111,6 +133,8 @@ func (p *paymentUseCase) ProcessRefund(uuid uuid.UUID) error {
 	return nil
 }
 
+// BankSimulator simulates the communication with the Bank
+// It fails if it isn't enough found for an operation
 func (p *paymentUseCase) BankSimulator(payment *entity.Payment, op string) error {
 	card, err := p.repository.GetCardByNumber(payment.CardNumber)
 	if err != nil {
@@ -140,18 +164,20 @@ func (p *paymentUseCase) BankSimulator(payment *entity.Payment, op string) error
 		}
 		payment.States = append(payment.States, entity.SetState(entity.Refunded))
 	}
-
+	p.logger.Info("processing operation in mock Bank")
 	err = p.repository.UpdateCardAndMerchant(card, merch)
 	if err != nil {
 		p.logger.Error(err.Error())
 		return errors.New("error from mock bank api")
 	}
-	//randomInt := rand.Intn(5)
-	//if randomInt == 0 {
-	//	payment.States = append(payment.States, entity.SetState(entity.Rejected))
-	//} else {
-	//	payment.States = append(payment.States, entity.SetState(entity.Succeeded))
-	//}
 
 	return nil
+}
+
+func statesToMap(states []entity.State) map[string]uint {
+	statesMap := make(map[string]uint)
+	for _, state := range states {
+		statesMap[state.Name] = state.ID
+	}
+	return statesMap
 }

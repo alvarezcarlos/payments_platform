@@ -16,5 +16,5 @@ type PaymentUseCaseInterface interface {
 	ProcessPayment(
 		payment *entity.Payment,
 		customer *entity.Card) (*entity.Payment, error)
-	ProcessRefund(uuid uuid.UUID) error
+	ProcessRefund(uuid uuid.UUID, merchantName string) error
 }

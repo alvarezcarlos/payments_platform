@@ -21,6 +21,7 @@ func NewMerchantUseCase(repository repository.MerchantRepository, logger *slog.L
 		logger:     logger}
 }
 
+// Create merchant assigning random founds
 func (m *merchantUseCase) Create(merchant *entity.Merchant) (*entity.Merchant, error) {
 	merchant.CreatedAt, merchant.UpdatedAt = time.Now(), time.Now()
 	merchant.Balance = utils.RandomFloat()
@@ -29,9 +30,11 @@ func (m *merchantUseCase) Create(merchant *entity.Merchant) (*entity.Merchant, e
 		m.logger.Error(err.Error())
 		return nil, errors.New("error creating merchant")
 	}
+	m.logger.Info("merchant created", merchant)
 	return merch, nil
 }
 
+// GetByName get merchant by name
 func (m *merchantUseCase) GetByName(name string) (*entity.Merchant, error) {
 	return m.repository.GetByName(name)
 }

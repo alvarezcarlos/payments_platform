@@ -23,7 +23,7 @@ func (m *merchantRepo) Create(merchant *entity.Merchant) (*entity.Merchant, erro
 
 func (p *merchantRepo) GetByName(name string) (*entity.Merchant, error) {
 	var merchant entity.Merchant
-	if err := p.conn.Where("name = ?", name).First(&merchant).Error; err != nil {
+	if err := p.conn.Preload("Payments").Where("name = ?", name).First(&merchant).Error; err != nil {
 		return nil, err
 	}
 	return &merchant, nil
