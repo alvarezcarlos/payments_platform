@@ -24,7 +24,7 @@ func NewPaymentController(e *echo.Echo, useCase application.PaymentUseCaseInterf
 	g := e.Group("/api/payments")
 	p := &PaymentController{useCase: useCase, customValidator: customValidator}
 	g.POST("/create", p.Create, middleware.JwtMiddleware)
-	g.GET("/:id", p.GetByID, middleware.JwtMiddleware)
+	g.GET("/:id", p.GetByID)
 	g.POST("/process", p.Process)
 	g.POST("/refund", p.Refund, middleware.JwtMiddleware)
 	return p
