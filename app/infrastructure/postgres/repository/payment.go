@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/alvarezcarlos/payment/app/domain/entity"
+	"github.com/alvarezcarlos/payment/app/domain/repository"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ type paymentRepo struct {
 	conn *gorm.DB
 }
 
-func NewPaymentRepository(conn *gorm.DB) PaymentRepository {
+func NewPaymentRepository(conn *gorm.DB) repository.PaymentRepository {
 	return &paymentRepo{conn: conn}
 }
 
@@ -58,5 +59,41 @@ func (p *paymentRepo) CreateCard(card *entity.Card) error {
 		}
 		return err
 	}
+	return nil
+}
+
+func (p *paymentRepo) GetCardByNumber(number string) (*entity.Card, error) {
+	var retrievedCard entity.Card
+	if err := p.conn.Where("number = ?", number).First(&retrievedCard).Error; err != nil {
+		return nil, err
+	}
+	return &retrievedCard, nil
+}
+
+func (p *paymentRepo) GetMerchantByID(id uint) (*entity.Merchant, error) {
+	var retrievedMerchant entity.Merchant
+	if err := p.conn.First(&retrievedMerchant, id).Error; err != nil {
+		return nil, err
+	}
+	return &retrievedMerchant, nil
+}
+
+func (p *paymentRepo) UpdateCardAndMerchant(card *entity.Card, merchant *entity.Merchant) error {
+	tx := p.conn.Begin()
+
+	if err := tx.Save(card).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Save(merchant).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
 	return nil
 }

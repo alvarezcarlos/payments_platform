@@ -3,23 +3,26 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/alvarezcarlos/payment/app/application"
-	"github.com/alvarezcarlos/payment/app/config"
-	"github.com/alvarezcarlos/payment/app/domain/entity"
-	"github.com/alvarezcarlos/payment/app/domain/repository"
-	"github.com/alvarezcarlos/payment/app/infrastructure/postgres/connection"
-	"github.com/alvarezcarlos/payment/app/interface/rest"
-	"github.com/alvarezcarlos/payment/app/interface/rest/validation"
-	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"github.com/alvarezcarlos/payment/app/interface/rest/middelware"
+	"github.com/labstack/echo/v4/middleware"
 	"io"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/alvarezcarlos/payment/app/application"
+	"github.com/alvarezcarlos/payment/app/config"
+	"github.com/alvarezcarlos/payment/app/domain/entity"
+	"github.com/alvarezcarlos/payment/app/infrastructure/postgres/connection"
+	repo "github.com/alvarezcarlos/payment/app/infrastructure/postgres/repository"
+	"github.com/alvarezcarlos/payment/app/interface/rest"
+	"github.com/alvarezcarlos/payment/app/interface/rest/validation"
+	"github.com/go-playground/validator/v10"
+	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var validate *validator.Validate
@@ -36,17 +39,22 @@ func main() {
 	migrator := connection.NewMigrate(conn, slog.Default())
 	initDBMigrations(migrator)
 	//Repositories
-	merchantRepo := repository.NewMerchantRepository(conn)
-	paymentRepo := repository.NewPaymentRepository(conn)
+	merchantRepo := repo.NewMerchantRepository(conn)
+	paymentRepo := repo.NewPaymentRepository(conn)
 	//UseCases
 	merchantUseCase := application.NewMerchantUseCase(merchantRepo, slog.Default())
 	paymentUseCase := application.NewPaymentUseCase(paymentRepo, slog.Default())
 	e := echo.New()
 
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	authMiddleware := middelware.NewMiddleware()
+
 	//Controllers
 	customValidator := validation.NewCustomValidator(validate)
 	rest.NewMerchantController(e, merchantUseCase, customValidator)
-	rest.NewPaymentController(e, paymentUseCase, customValidator)
+	rest.NewPaymentController(e, paymentUseCase, customValidator, authMiddleware)
 
 	go startServer(e)
 	gracefulShutdown(e)
@@ -97,8 +105,8 @@ func setLogger() *os.File {
 		ReplaceAttr: replace,
 	}
 
-	logger := slog.New(slog.NewJSONHandler(w, &slogOptions))
-	slog.SetDefault(logger)
+	sLogger := slog.New(slog.NewJSONHandler(w, &slogOptions))
+	slog.SetDefault(sLogger)
 	return file
 }
 

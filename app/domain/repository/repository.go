@@ -6,7 +6,8 @@ import (
 )
 
 type MerchantRepository interface {
-	Create(merchant *entity.Merchant) error
+	Create(merchant *entity.Merchant) (*entity.Merchant, error)
+	GetByName(name string) (*entity.Merchant, error)
 }
 
 type PaymentRepository interface {
@@ -14,4 +15,7 @@ type PaymentRepository interface {
 	Update(payment *entity.Payment) (*entity.Payment, error)
 	GetByID(id uuid.UUID) (*entity.Payment, error)
 	CreateCard(card *entity.Card) error
+	GetCardByNumber(number string) (*entity.Card, error)
+	GetMerchantByID(id uint) (*entity.Merchant, error)
+	UpdateCardAndMerchant(card *entity.Card, merchant *entity.Merchant) error
 }

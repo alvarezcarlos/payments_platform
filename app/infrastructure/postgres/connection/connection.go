@@ -2,11 +2,12 @@ package connection
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
+
 	"github.com/alvarezcarlos/payment/app/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log/slog"
-	"time"
 )
 
 const (

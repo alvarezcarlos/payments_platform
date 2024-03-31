@@ -2,9 +2,10 @@ package validation
 
 import (
 	"errors"
+	"strings"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"strings"
 )
 
 type customValidator struct {

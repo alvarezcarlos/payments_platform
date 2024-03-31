@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -10,6 +11,7 @@ type Configuration struct {
 	AppName     string   `envconfig:"APP_NAME" default:"payment"`
 	LogLevel    string   `envconfig:"LOG_LEVEL" default:"info"`
 	Port        string   `envconfig:"PORT" default:"8081"`
+	SecretKey   string   `envconfig:"SECRET_KEY" default:"someUltraSecretKey"`
 	Database    DBConfig `envconfig:"DATABASE"`
 }
 

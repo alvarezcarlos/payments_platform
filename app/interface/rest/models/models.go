@@ -1,8 +1,8 @@
 package models
 
 type Merchant struct {
-	Name    string `json:"name" validate:"required"`
-	Account int32  `json:"account" validate:"required"`
+	Name     string `json:"name" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type PaymentCreateReq struct {
@@ -25,4 +25,8 @@ type Card struct {
 type Customer struct {
 	PersonalID uint   `json:"personal_id" validate:"required"`
 	Name       string `json:"name" validate:"required"`
+}
+
+type RefundPaymentReq struct {
+	PaymentID string `json:"payment_id" validate:"required,uuid"`
 }

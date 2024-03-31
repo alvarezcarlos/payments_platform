@@ -6,7 +6,8 @@ import (
 )
 
 type MerchantUseCaseInterface interface {
-	Create(merchant *entity.Merchant) error
+	Create(merchant *entity.Merchant) (*entity.Merchant, error)
+	GetByName(name string) (*entity.Merchant, error)
 }
 
 type PaymentUseCaseInterface interface {
@@ -15,4 +16,5 @@ type PaymentUseCaseInterface interface {
 	ProcessPayment(
 		payment *entity.Payment,
 		customer *entity.Card) (*entity.Payment, error)
+	ProcessRefund(uuid uuid.UUID) error
 }

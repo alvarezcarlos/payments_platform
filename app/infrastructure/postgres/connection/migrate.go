@@ -1,8 +1,9 @@
 package connection
 
 import (
-	"gorm.io/gorm"
 	"log/slog"
+
+	"gorm.io/gorm"
 )
 
 type MigrateInterface interface {

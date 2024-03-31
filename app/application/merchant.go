@@ -2,10 +2,12 @@ package application
 
 import (
 	"errors"
-	"github.com/alvarezcarlos/payment/app/domain/entity"
-	"github.com/alvarezcarlos/payment/app/domain/repository"
 	"log/slog"
 	"time"
+
+	"github.com/alvarezcarlos/payment/app/domain/entity"
+	"github.com/alvarezcarlos/payment/app/domain/repository"
+	"github.com/alvarezcarlos/payment/app/utils"
 )
 
 type merchantUseCase struct {
@@ -19,11 +21,17 @@ func NewMerchantUseCase(repository repository.MerchantRepository, logger *slog.L
 		logger:     logger}
 }
 
-func (m *merchantUseCase) Create(merchant *entity.Merchant) error {
+func (m *merchantUseCase) Create(merchant *entity.Merchant) (*entity.Merchant, error) {
 	merchant.CreatedAt, merchant.UpdatedAt = time.Now(), time.Now()
-	if err := m.repository.Create(merchant); err != nil {
+	merchant.Balance = utils.RandomFloat()
+	merch, err := m.repository.Create(merchant)
+	if err != nil {
 		m.logger.Error(err.Error())
-		return errors.New("error creating merchant")
+		return nil, errors.New("error creating merchant")
 	}
-	return nil
+	return merch, nil
+}
+
+func (m *merchantUseCase) GetByName(name string) (*entity.Merchant, error) {
+	return m.repository.GetByName(name)
 }

@@ -1,63 +1,34 @@
 package rest
 
 import (
+	"github.com/alvarezcarlos/payment/app/interface/rest/middelware"
+	"net/http"
+
 	"github.com/alvarezcarlos/payment/app/application"
 	"github.com/alvarezcarlos/payment/app/domain/entity"
 	"github.com/alvarezcarlos/payment/app/interface/rest/models"
 	"github.com/alvarezcarlos/payment/app/interface/rest/validation"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"net/http"
 )
 
-type MerchantController struct {
-	useCase         application.MerchantUseCaseInterface
-	customValidator validation.Validator
-}
 type PaymentController struct {
 	useCase         application.PaymentUseCaseInterface
 	customValidator validation.Validator
+	middleware      middelware.Middleware
 }
 
-func NewMerchantController(e *echo.Echo, useCase application.MerchantUseCaseInterface, customValidator validation.Validator) *MerchantController {
-	g := e.Group("/api/merchants")
-	m := &MerchantController{useCase: useCase, customValidator: customValidator}
-	g.POST("/create", m.Create)
-	return m
-}
-
-func NewPaymentController(e *echo.Echo, useCase application.PaymentUseCaseInterface, customValidator validation.Validator) *PaymentController {
+func NewPaymentController(e *echo.Echo, useCase application.PaymentUseCaseInterface,
+	customValidator validation.Validator,
+	middleware middelware.Middleware) *PaymentController {
 	g := e.Group("/api/payments")
 	p := &PaymentController{useCase: useCase, customValidator: customValidator}
-	g.POST("/create", p.Create)
-	g.GET("/:id", p.GetByID)
+	g.POST("/create", p.Create, middleware.JwtMiddleware)
+	g.GET("/:id", p.GetByID, middleware.JwtMiddleware)
 	g.POST("/process", p.Process)
+	g.POST("/refund", p.Refund, middleware.JwtMiddleware)
 	return p
 }
-
-func (m *MerchantController) Create(c echo.Context) error {
-	merch := models.Merchant{}
-	if err := c.Bind(&merch); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
-	}
-
-	if err := m.customValidator.ValidateStruct(merch); err != nil {
-		c.Logger().Error(err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
-	}
-
-	em := entity.Merchant{
-		Name:          merch.Name,
-		AccountNumber: merch.Account,
-	}
-
-	if err := m.useCase.Create(&em); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
-	}
-
-	return c.JSON(http.StatusCreated, map[string]string{"message": "created"})
-}
-
 func (p *PaymentController) Create(c echo.Context) error {
 	pay := models.PaymentCreateReq{}
 	if err := c.Bind(&pay); err != nil {
@@ -124,6 +95,26 @@ func (p *PaymentController) Process(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
 	}
-	//crear payment response paar no devolver datos sensibles
-	return c.JSON(http.StatusOK, payment)
+	return c.JSON(http.StatusOK, map[string]interface{}{"id": payment.ID, "state": payment.States[len(payment.States)-1]})
+}
+
+func (p *PaymentController) Refund(c echo.Context) error {
+	refundReq := models.RefundPaymentReq{}
+	if err := c.Bind(&refundReq); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
+	}
+
+	if err := p.customValidator.ValidateStruct(refundReq); err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": err.Error()})
+	}
+
+	uid, _ := uuid.Parse(refundReq.PaymentID)
+
+	err := p.useCase.ProcessRefund(uid)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"id": refundReq.PaymentID})
 }
